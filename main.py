@@ -42,19 +42,29 @@ def get_info(url: str = Query(..., description="رابط الفيديو المر
 
     formats = []
     for f in info.get("formats", []):
-        has_video = f.get("vcodec") not in (None, "none")
-        has_audio = f.get("acodec") not in (None, "none")
+        vcodec = f.get("vcodec")
+        acodec = f.get("acodec")
 
-        # المرحلة الأولى: نكتفي بالصيغ الجاهزة (فيديو+صوت في ملف واحد)
-        # لتجنب الحاجة لدمج الملفات على الخادم (يتطلب ffmpeg)
-        if has_video and not has_audio:
+        # "none" الصريحة تعني غياب المسار فعلاً، أما القيمة المجهولة (None)
+        # فتعني أن yt-dlp لم يحدد الأمر بدقة، ونفترض حينها أنه على الأرجح موجود
+        has_video = vcodec != "none"
+        has_audio = acodec != "none"
+
+        # المرحلة الأولى: نستبعد فقط الصيغ المؤكد أنها فيديو بدون صوت
+        # (تحتاج دمجًا مع ffmpeg، وهذا خارج نطاق هذه المرحلة)
+        video_only_confirmed = (vcodec not in (None, "none")) and acodec == "none"
+        if video_only_confirmed:
             continue
+
+        label = f.get("format_note") or f.get("resolution")
+        if not label:
+            label = "صوت فقط" if not has_video else f.get("format_id", "جودة قياسية")
 
         formats.append(
             {
                 "format_id": f.get("format_id"),
                 "ext": f.get("ext"),
-                "resolution": f.get("format_note") or f.get("resolution") or "صوت فقط",
+                "resolution": label,
                 "filesize": f.get("filesize") or f.get("filesize_approx"),
                 "has_video": has_video,
                 "has_audio": has_audio,
