@@ -1,4 +1,5 @@
 import asyncio
+import os
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +14,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+
+SECRETS_DIR = "/etc/secrets"
+YOUTUBE_COOKIES = os.path.join(SECRETS_DIR, "youtube_cookies.txt")
+TIKTOK_COOKIES = os.path.join(SECRETS_DIR, "tiktok_cookies.txt")
+
+
+def get_cookiefile(url: str):
+    """يختار ملف الكوكيز المناسب حسب المنصة، أو لا شيء إن لم تكن مدعومة"""
+    lowered = url.lower()
+    if "youtube.com" in lowered or "youtu.be" in lowered:
+        if os.path.exists(YOUTUBE_COOKIES):
+            return YOUTUBE_COOKIES
+    elif "tiktok.com" in lowered:
+        if os.path.exists(TIKTOK_COOKIES):
+            return TIKTOK_COOKIES
+    return None
 
 
 @app.get("/")
@@ -32,7 +51,14 @@ def get_info(url: str = Query(..., description="رابط الفيديو المر
         "no_warnings": True,
         "skip_download": True,
         "noplaylist": True,
+        "http_headers": {
+            "User-Agent": USER_AGENT,
+        },
     }
+
+    cookiefile = get_cookiefile(url)
+    if cookiefile:
+        ydl_opts["cookiefile"] = cookiefile
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -97,8 +123,14 @@ async def download(
         "--no-playlist",
         "--quiet",
         "--no-warnings",
-        url,
+        "--user-agent", USER_AGENT,
     ]
+
+    cookiefile = get_cookiefile(url)
+    if cookiefile:
+        cmd += ["--cookies", cookiefile]
+
+    cmd.append(url)
 
     process = await asyncio.create_subprocess_exec(
         *cmd,
