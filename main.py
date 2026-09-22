@@ -17,11 +17,20 @@ app.add_middleware(
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
+import shutil
+
 SECRETS_DIR = "/etc/secrets"
-YOUTUBE_COOKIES = os.path.join(SECRETS_DIR, "youtube_cookies.txt")
-TIKTOK_COOKIES = os.path.join(SECRETS_DIR, "tiktok_cookies.txt")
+WRITABLE_DIR = "/tmp/cookies"
+os.makedirs(WRITABLE_DIR, exist_ok=True)
 
+YOUTUBE_COOKIES = os.path.join(WRITABLE_DIR, "youtube_cookies.txt")
+TIKTOK_COOKIES = os.path.join(WRITABLE_DIR, "tiktok_cookies.txt")
 
+for fname in ("youtube_cookies.txt", "tiktok_cookies.txt"):
+    src = os.path.join(SECRETS_DIR, fname)
+    dst = os.path.join(WRITABLE_DIR, fname)
+    if os.path.exists(src):
+        shutil.copy(src, dst)
 def get_cookiefile(url: str):
     """يختار ملف الكوكيز المناسب حسب المنصة، أو لا شيء إن لم تكن مدعومة"""
     lowered = url.lower()
