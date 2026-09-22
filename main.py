@@ -47,7 +47,7 @@ def get_cookiefile(url: str):
 def get_extractor_args(url: str):
     """يفرض عميل أندرويد ليوتيوب لتفادي حماية 'confirm not a bot'"""
     if "youtube.com" in url.lower() or "youtu.be" in url.lower():
-        return {"youtube": {"player_client": ["android"]}}
+        return {"youtube": {"player_client": ["tv"]}}
     return {}
 
 
@@ -145,7 +145,7 @@ async def download(
     ]
 
     if "youtube.com" in url.lower() or "youtu.be" in url.lower():
-        cmd += ["--extractor-args", "youtube:player_client=android"]
+        cmd += ["--extractor-args", "youtube:player_client=tv"]
 
     cookiefile = get_cookiefile(url)
     if cookiefile:
