@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shutil
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,8 +18,6 @@ app.add_middleware(
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
-import shutil
-
 SECRETS_DIR = "/etc/secrets"
 WRITABLE_DIR = "/tmp/cookies"
 os.makedirs(WRITABLE_DIR, exist_ok=True)
@@ -31,6 +30,8 @@ for fname in ("youtube_cookies.txt", "tiktok_cookies.txt"):
     dst = os.path.join(WRITABLE_DIR, fname)
     if os.path.exists(src):
         shutil.copy(src, dst)
+
+
 def get_cookiefile(url: str):
     """يختار ملف الكوكيز المناسب حسب المنصة، أو لا شيء إن لم تكن مدعومة"""
     lowered = url.lower()
@@ -41,6 +42,13 @@ def get_cookiefile(url: str):
         if os.path.exists(TIKTOK_COOKIES):
             return TIKTOK_COOKIES
     return None
+
+
+def get_extractor_args(url: str):
+    """يفرض عميل أندرويد ليوتيوب لتفادي حماية 'confirm not a bot'"""
+    if "youtube.com" in url.lower() or "youtu.be" in url.lower():
+        return {"youtube": {"player_client": ["android"]}}
+    return {}
 
 
 @app.get("/")
@@ -63,6 +71,7 @@ def get_info(url: str = Query(..., description="رابط الفيديو المر
         "http_headers": {
             "User-Agent": USER_AGENT,
         },
+        "extractor_args": get_extractor_args(url),
     }
 
     cookiefile = get_cookiefile(url)
@@ -134,6 +143,9 @@ async def download(
         "--no-warnings",
         "--user-agent", USER_AGENT,
     ]
+
+    if "youtube.com" in url.lower() or "youtu.be" in url.lower():
+        cmd += ["--extractor-args", "youtube:player_client=android"]
 
     cookiefile = get_cookiefile(url)
     if cookiefile:
